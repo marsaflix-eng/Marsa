@@ -1,0 +1,5 @@
+Contact: https://wa.me/22248650585
+Preferred-Languages: ar, en
+Canonical: /.well-known/security.txt
+Policy: Report security issues privately via WhatsApp.
+Expires: 2027-07-28T00:00:00.000Z
