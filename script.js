@@ -141,16 +141,29 @@
     return "القيمة";
   }
 
+  /** Relative luminance 0–1 for hex #RRGGBB (for icon contrast on brand tiles) */
+  function colorLuminance(hex) {
+    const h = String(hex || "").replace("#", "");
+    if (h.length !== 6) return 0.5;
+    const r = parseInt(h.slice(0, 2), 16) / 255;
+    const g = parseInt(h.slice(2, 4), 16) / 255;
+    const b = parseInt(h.slice(4, 6), 16) / 255;
+    const lin = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  }
+
   function productLogoHtml(product, sizeClass) {
-    const color = Sec.sanitizeColor(product.color);
+    const color = Sec.sanitizeColor(product.color) || "#147bfe";
     const icon = Sec.sanitizeIconClass(product.icon);
     const name = escapeHtml(product.name);
     const img = Sec.sanitizeImageUrl(product.image);
     const size = sizeClass ? escapeHtml(sizeClass) : "";
+    const light = colorLuminance(color) > 0.62 ? " brand-logo--light" : "";
 
     if (img) {
       return `
-        <div class="brand-logo ${size}" style="--brand:${escapeHtml(color)}" data-has-img="1">
+        <div class="brand-logo ${size}${light}" style="--brand:${escapeHtml(color)}" data-has-img="1">
+          <span class="brand-logo__surface" aria-hidden="true"></span>
           <img
             src="${escapeHtml(img)}"
             alt="${name}"
@@ -164,7 +177,8 @@
     }
 
     return `
-      <div class="brand-logo brand-logo--icon ${size}" style="--brand:${escapeHtml(color)}">
+      <div class="brand-logo brand-logo--icon ${size}${light}" style="--brand:${escapeHtml(color)}">
+        <span class="brand-logo__surface" aria-hidden="true"></span>
         <i class="${escapeHtml(icon)}" aria-hidden="true"></i>
       </div>
     `;
@@ -253,7 +267,9 @@
       .map(
         (p) => `
       <button type="button" class="featured-card" data-goto-product="${escapeHtml(p.id)}" title="${escapeHtml(p.name)}">
-        ${productLogoHtml(p, "brand-logo--sm")}
+        <div class="featured-card__tile">
+          ${productLogoHtml(p, "brand-logo--tile")}
+        </div>
         <span class="featured-card__name">${escapeHtml(p.name)}</span>
         <span class="featured-card__price">${formatPrice(p.options?.[0]?.price || 0)}</span>
       </button>
@@ -328,46 +344,48 @@
 
         return `
         <article class="product-card" style="animation-delay: ${delay}s" data-product-id="${escapeHtml(product.id)}" data-category="${escapeHtml(product.category || "")}">
-          <div class="product-card__shine" aria-hidden="true"></div>
-          <div class="product-card__top">
-            ${productLogoHtml(product)}
+          <div class="product-card__media">
+            ${badgeHtml}
+            ${productLogoHtml(product, "brand-logo--product")}
+          </div>
+          <div class="product-card__body">
             <div class="product-card__info">
-              ${badgeHtml}
               <h3 class="product-card__name">${escapeHtml(product.name)}</h3>
               <div class="product-card__tags">
                 ${catHtml}
                 ${regionHtml}
               </div>
             </div>
-          </div>
 
-          <div class="product-card__field">
-            <label for="duration-${escapeHtml(product.id)}">${escapeHtml(fieldLabel)}</label>
-            <select
-              class="product-card__select"
-              id="duration-${escapeHtml(product.id)}"
-              data-product-id="${escapeHtml(product.id)}"
-              aria-label="اختر ${escapeHtml(fieldLabel)} لـ ${escapeHtml(product.name)}"
-            >
-              ${optionsHtml}
-            </select>
-          </div>
+            <div class="product-card__field">
+              <label for="duration-${escapeHtml(product.id)}">${escapeHtml(fieldLabel)}</label>
+              <select
+                class="product-card__select"
+                id="duration-${escapeHtml(product.id)}"
+                data-product-id="${escapeHtml(product.id)}"
+                aria-label="اختر ${escapeHtml(fieldLabel)} لـ ${escapeHtml(product.name)}"
+              >
+                ${optionsHtml}
+              </select>
+            </div>
 
-          <div class="product-card__price">
-            <span>السعر</span>
-            <strong class="js-price" data-product-id="${escapeHtml(product.id)}">
-              ${formatPrice(defaultOption.price)}
-            </strong>
+            <div class="product-card__footer">
+              <div class="product-card__price">
+                <span>السعر</span>
+                <strong class="js-price" data-product-id="${escapeHtml(product.id)}">
+                  ${formatPrice(defaultOption.price)}
+                </strong>
+              </div>
+              <button
+                type="button"
+                class="btn btn--add js-add-to-cart"
+                data-product-id="${escapeHtml(product.id)}"
+              >
+                <i class="fa-solid fa-cart-plus"></i>
+                <span>أضف</span>
+              </button>
+            </div>
           </div>
-
-          <button
-            type="button"
-            class="btn btn--add js-add-to-cart"
-            data-product-id="${escapeHtml(product.id)}"
-          >
-            <i class="fa-solid fa-cart-plus"></i>
-            إضافة إلى السلة
-          </button>
         </article>
       `;
       })

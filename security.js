@@ -14,8 +14,9 @@
   const SAFE_SORT = new Set(["featured", "name", "price-asc", "price-desc"]);
   const SAFE_HOSTS = new Set(["wa.me", "api.whatsapp.com", "www.whatsapp.com"]);
 
-  /** Allowed external image hosts for product logos */
+  /** Allowed external image hosts for product images / logos */
   const SAFE_IMG_HOSTS = new Set([
+    "seagm-media.seagmcdn.com",
     "logo.clearbit.com",
     "clearbit.com",
     "www.google.com",
@@ -124,7 +125,8 @@
       const host = u.hostname.toLowerCase();
       const ok =
         SAFE_IMG_HOSTS.has(host) ||
-        host.endsWith(".clearbit.com");
+        host.endsWith(".clearbit.com") ||
+        host.endsWith(".seagmcdn.com");
       if (!ok) return null;
       return u.toString();
     } catch {

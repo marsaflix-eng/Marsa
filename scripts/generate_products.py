@@ -118,24 +118,103 @@ BRAND_MAP = [
 
 
 def logo_url(domain: str) -> str:
+    """Legacy Clearbit logo (fallback only). Prefer SEAGM product art."""
     return f"https://logo.clearbit.com/{domain}"
+
+
+def seagm_item_url(item_id: int | str) -> str:
+    return f"https://seagm-media.seagmcdn.com/item_480/{item_id}.png"
+
+
+# Known SEAGM catalog item IDs for popular brands (gift-card product art)
+SEAGM_BRAND_IMAGES: list[tuple[tuple[str, ...], int]] = [
+    (("itunes", "apple gift", "apple"), 191),
+    (("google play",), 225),
+    (("steam",), 196),
+    (("playstation", "psn"), 189),
+    (("xbox",), 194),
+    (("netflix",), 595),
+    (("roblox", "rbx"), 1674),
+    (("pubg",), 843),
+    (("free fire",), 999),
+    (("free fire max",), 1397),
+    (("binance",), 1616),
+    (("shahid", "mbc"), 1478),
+    (("osn",), 2138),
+    (("starz",), 2133),
+    (("ludo star",), 3123),
+    (("garena voucher",), 3082),
+    (("honor of kings",), 1918),
+    (("eneba",), 2013),
+    (("minecraft", "minecoin"), 1164),
+    (("iqiyi",), 1927),
+    (("viu",), 1673),
+    (("wetv",), 2728),
+    (("bilibili", "bstation"), 1441),
+    (("rewarble",), 1834),
+    (("showtime",), 1758),
+    (("kinguin",), 2541),
+    (("garena shells",), 56),
+]
+
+
+def load_seagm_image_map() -> dict[str, str]:
+    """title(lower) → image url from scraped map if present."""
+    path = Path(__file__).resolve().parent / "seagm_image_map.json"
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    out: dict[str, str] = {}
+    for title, val in (data.get("by_title") or {}).items():
+        img = val if isinstance(val, str) else (val or {}).get("image")
+        if title and img:
+            out[str(title).lower().strip()] = img
+    for _id, obj in (data.get("by_id") or {}).items():
+        if isinstance(obj, dict) and obj.get("title") and obj.get("image"):
+            out[str(obj["title"]).lower().strip()] = obj["image"]
+    return out
+
+
+_SEAGM_TITLE_MAP: dict[str, str] | None = None
+
+
+def seagm_image_for(name: str) -> str | None:
+    global _SEAGM_TITLE_MAP
+    if _SEAGM_TITLE_MAP is None:
+        _SEAGM_TITLE_MAP = load_seagm_image_map()
+    low = name.lower().strip()
+    if low in _SEAGM_TITLE_MAP:
+        return _SEAGM_TITLE_MAP[low]
+    # brand fallback from known item ids (prefer longer keys)
+    for keys, item_id in sorted(SEAGM_BRAND_IMAGES, key=lambda x: -max(len(k) for k in x[0])):
+        if any(k in low for k in keys):
+            return seagm_item_url(item_id)
+    # partial title from map
+    for title, img in _SEAGM_TITLE_MAP.items():
+        if len(title) >= 10 and (title in low or low in title):
+            return img
+    return None
 
 
 def resolve_brand(name: str):
     n = name.lower()
+    seagm = seagm_image_for(name)
     for keys, domain, icon, color in BRAND_MAP:
         if any(k in n for k in keys):
             return {
                 "domain": domain,
                 "icon": icon,
                 "color": color,
-                "image": logo_url(domain),
+                "image": seagm or logo_url(domain),
             }
     return {
         "domain": None,
         "icon": "fa-solid fa-credit-card",
         "color": "#147BFE",
-        "image": None,
+        "image": seagm,
     }
 
 
@@ -464,7 +543,7 @@ def main():
             "name": "Snapchat Plus",
             "description": "اشتراك Snapchat Plus الرسمي — مميزات حصرية وتجربة محسّنة",
             "icon": "fa-brands fa-snapchat",
-            "image": logo_url("snapchat.com"),
+            "image": seagm_image_for("Snapchat Plus") or logo_url("snapchat.com"),
             "color": "#FFFC00",
             "badge": "الأكثر طلبًا",
             "category": "subscriptions",
@@ -574,7 +653,7 @@ def main():
  *  - SEAGM Card Products List
  *  - SEAGM Video on Demand Prices
  * Exchange rate: 1 USD = {RATE} MRU
- * Logos via Clearbit (logo.clearbit.com)
+ * Product images via SEAGM CDN (seagm-media.seagmcdn.com)
  * All prices in Mauritanian Ouguiya (MRU)
  * Duplicates removed by normalized product name
  *
@@ -600,7 +679,12 @@ const STORE_CONFIG = {{
     OUT_PATH.write_text(content, encoding="utf-8")
     with_img = sum(1 for p in products if p.get("image"))
     print(f"Wrote {OUT_PATH}")
-    print(f"Products total: {len(products)} | logos: {with_img}")
+    seagm_n = sum(
+        1
+        for p in products
+        if isinstance(p.get("image"), str) and "seagmcdn.com" in p["image"]
+    )
+    print(f"Products total: {len(products)} | images: {with_img} | seagm: {seagm_n}")
     print(f"VOD added: {vod_added}")
     print(f"Duplicates skipped: {len(skipped_dupes)}")
     cats = defaultdict(int)
